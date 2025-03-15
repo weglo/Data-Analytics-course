@@ -1,0 +1,187 @@
+---
+title: " PROJECT 1: SIMPLE LINEAR REGRESSION - SEMICONDUCTOR FILM ANALYSIS"
+author: "Loic Wega"
+date: Last compiled on `r format(Sys.time(), '%B %d, %Y')` at `r format(Sys.time(),'%l:%M %p - %Z')`
+output:
+  html_document: 
+    toc: true
+    number_sections: true
+    toc_float: true
+  word_document:
+    toc: true
+    number_sections: true
+  pdf_document: 
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message = FALSE)
+```
+
+# **INTRODUCTION**
+
+This report evaluates the relationship between film thickness (x) and electrical resistance (y) using simple linear regression. We apply relevant mathematical models and provide supporting R code for analysis.
+
+-   x: **film thickness**
+
+-   y: **electrical resistance**
+
+Let's first download the data set from the link below and install all the necessary libraries for this project.
+
+<https://raw.githubusercontent.com/tmatis12/datafiles/refs/heads/main/semiconductor_SLR_dataset.csv>
+
+```{r}
+#install ggplot2 library
+#install.packages("ggplot2")
+library(ggplot2)
+
+#dowload the dataset
+data_url <- "https://raw.githubusercontent.com/tmatis12/datafiles/refs/heads/main/semiconductor_SLR_dataset.csv"
+data <- read.csv(data_url)
+head(data)
+```
+
+# **EXPLORATORY DATA ANALYSIS (EDA)**
+
+In this part we will do an exploratory analysis of our data and observe what relation we can find between the **film thickness** and the **resistance** using visual approach by using histogram, box plot and scatter plot
+
+##  **Exploratory data analysis on Electrical Resistance (y)**
+
+Let's first do an histogram plot and the box plot of our response variable **electrical resistance**
+
+```{r}
+#Histogram of electrical resistance (y)
+hist(data$Electrical_Resistance_mOhm,
+     main= "Histogram of Electrical_Resistance_mOhm",
+     xlab = "Electrical_Resistance_mOhm",
+     ) 
+
+```
+
+```{r}
+#Boxplot of electrical resistance (y)
+boxplot(data$Electrical_Resistance_mOhm) 
+```
+
+looking on those graphs we can said that **Electrical_Resistance_mOhm** follows such a Skew shape
+
+## **Exploratory data analysis on Electrical_Resistance (y) versus Thickness (x)**
+
+let's do a Scatter plot of our response ( y =**electrical resistance**) versus our predictor (x= **thickness**)
+
+$$
+y=f(x) 
+$$
+
+```{r}
+#scatterplot of resistance (y) versus thickness (x)
+ggplot(data,aes(x=Film_Thickness_nm, y=Electrical_Resistance_mOhm))+
+  geom_point(color="red", size=3) 
+```
+
+Looking on this plot we can recognize a curve shape.
+
+To summarize this part by looking on the previous different plot, we can first assume that our data doesn't follow the normal distribution.
+
+In the next part, let's fit a simple linear regression of the model a see if our assumption is true.
+
+# **REGRESSION MODEL FITTING AND ASSUMPTION CHECKING**
+
+Let's fit a **simple linear regression model** using **least squares estimation** to determine the nature of the relationship between **film thickness and resistance.** For the simple linear regression we have the following formula.
+
+$$
+y=B_o+B_1x  
+$$
+
+with:
+
+-   x: **Film_Thickness**
+
+-   y: **Electrical_Resistance**
+
+```{r}
+model1 <- lm(Electrical_Resistance_mOhm~Film_Thickness_nm, data)
+summary(model1)
+
+```
+
+By just looking on the statistical we can see that the $Pvalue= 2.2e^-16$is very small that means our predictor variable is **significant** also we can see that $R^2=0.9535$ that means our predicted variables are explained **by the model at 95.35%** and that is actually **good**.
+
+The model equation is:
+
+$$
+y=0.6406-0.0009065x
+$$
+
+Let's plot the model and see what we get.
+
+```{r}
+#Let's observe the normal probability and the constance of the variance
+plot(model1)
+```
+
+By plotting the model, we can notice that although the model respects the normal probability plot, it violates the fact that the variance of the error is not constant, which means that the assumption of the data following a normal distribution is not respected then we need to do a transformation on our data.
+
+# **MODEL TRANSFORMATION** 
+
+Given that previously our model doesn't respect normal distribution assumption, we have to bring modification on our variable **Y= Electrical_Resistance** following the BoxCox transformation.
+
+the equation of the transformation is:
+
+$$
+y^\lambda =B_o+B_1x
+$$
+
+```{r echo=FALSE}
+#applied the BoxCox method to our Model to find lambda
+library(MASS)
+b <- boxcox(model1)
+
+
+```
+
+```{r}
+#let's look at the value of lambda that give us the max likehood
+b$x[which.max(b$y)]
+```
+
+Now by using the BoxCox transformation, we found that the best value of lambda to transform our data is $\lambda=-0.8282828$
+
+so the transformation equation is:
+
+$$
+y^-0.8282828=0.6406-0.0009065x
+$$
+
+```{r}
+#Sqr transformation with the value of lambda for the maximize likelihood
+data$Electrical_Resistance_mOhm <- (data$Electrical_Resistance_mOhm)^-.8282828
+head(data)
+
+```
+
+By applying the transformation, let's build the new model
+
+```{r}
+model2 <- lm(Electrical_Resistance_mOhm~Film_Thickness_nm, data)
+summary(model2)
+
+```
+
+after the transformation we have this **model2** equation:
+
+$$
+y=0.3506-0.0002204x
+$$
+
+we can observe some changes in the statistical result like the $R^2=0.9532$ is a little bit lower that in the **model1,** we have the same $Pvalue= 2.2e^-16$ but by looking down on the **model2** plot, we can see that this new new model respect de normal probability plot but also the variance is look more constant.
+
+```{r}
+#Let's observe the normal probability and the constance of the variance
+plot(model2)
+```
+
+# **SUMMARY**
+
+To conclude we can said that **model2** explain the better our data and also given the equation of the model2 **(** $y=0.3506-0.0002204x$ **)** we can highlight that the Electrical_Resistance is decreasing when the Film_Thickness is increasing
