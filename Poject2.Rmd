@@ -1,0 +1,339 @@
+---
+title: " PROJECT 2: PROPERTY TAX ASSESSMENT"
+author: "Loic "
+date: Last compiled on `r format(Sys.time(), '%B %d, %Y')` at `r format(Sys.time(),'%l:%M %p - %Z')`
+output:
+  pdf_document: 
+    toc: true
+    number_sections: true
+  html_document: 
+    toc: true
+    number_sections: true
+    toc_float: true
+  word_document:
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message = FALSE)
+```
+
+# **INTRODUCTION**
+
+Property tax is a form of revenue that the county uses to fund municipal operations.  A tax assessor estimates the value of the property (land plus house), and then tax is levied as a percentage of the assessed value, less any exemptions.  The problem is that the assessed value of property isn’t very scientific, rather the tax assessor simply adjusts the value of the property based on what he/she feels is right.  Because of this, homeowners have the chance to appeal their assessment to the assessor, even taking it to court if necessary.  
+
+\
+This project is concerned with the assessed value of property at **6321 88th Street in Lubbock**, Texas, specifically whether the assessment is justified given the assessed property of other homes in the neighborhood.
+
+We will use the muliple linear regression equation $y=b_0+b_1X_1+b_2X_2+b_3X_3+.....b_nX_n$ and least squares estimates coefficients to evaluate our model
+
+with:
+
+$b_0= intercept$
+
+$b_1, b_2, b_3...b_n$ are all slopes values
+
+The data that is used for this project may be collected by following this link [DataSet_Property_Assessment](https://github.com/weglo/Data-Analytics-course/blob/main/Dataset_Property_assesment.csv)
+
+The Initial breakdown of key variables is like in the table below as follows the information on the website ( <https://lubbockcad.org/> )
+
+|  |  |
+|------------------------------------|------------------------------------|
+| Variable  | Explanation |
+| 2025 Market Value | Total value of property appraisal (house+land) |
+| Total Improvement Market Value | Total value of house appraisal  |
+| Total Land Market Value | Total value of land appraisal  |
+| Homestead Cap Loss | Represents a discount only in the current tax year if the appraised value from the previous year went up by more than 10% |
+| Total Main Area (Sq. Ft.) | Total square footage of house  |
+| Main Area (Sq. Ft.) | Total square footage of heated house area |
+| Main Area (Value)  | Total value of heated house area  |
+| Garage (Sq. Ft.) | Total square footage of non-heated house area |
+| Garage (Value) | Total value of non-heated house area  |
+| Land (Sq. Ft.) | Total square footage of land  |
+
+## **ASSUMPTIONS**
+
+Following those assumptions when collecting the data:
+
+-   **First assumption** : We excluded all properties with pools or spas from the analysis due to their limited representation in the dataset. With only a small number of properties exhibiting these features, they were deemed statistically insignificant for deriving meaningful insights. This exclusion ensures our analysis focuses on properties with more common characteristics, reducing potential bias from outliers.
+
+<!-- -->
+
+-   **Second assumption** : We excluded "*Total Land Market Value"* as a predictor variable because it is directly derived from "*Land (Sq. Ft)"*. Since land value is inherently dependent on parcel size and not vice versa we retained "*Land (Sq. Ft)"* as the more significant variable for analysis. This avoids multicollinearity issues while preserving interpretability, as land area serves as a root driver of market value.
+
+-   **Third assumption** : We didn't use Total Improvement Market Value because it's meant for predicting future prices (like what a property might be worth in 2027 or 2030). Since we're only looking at what the property at **6321 88th Stree**t is worth right now by comparing it to the model given by the other homes on the same street in the same year, this future-value number wasn't helpful for our analysis.
+
+We end up with the following breakdown of our variables
+
+|                        |                              |
+|------------------------|------------------------------|
+| **Predicted variable** | **Predictors variables**     |
+|                        | " TOTAL MAIN AREA (Sq. Ft) " |
+| " 2025 Market Value "  | " MAIN AREA (Sq. Ft) "       |
+|                        | " GARAGE ( Sq. Ft) "         |
+|                        | " LAND (Sq. Ft) "            |
+
+## **STEPS OF ANALYSIS**
+
+-   Data Loading and Initial Analysis: Importing and summarizing the dataset to assess completeness and structure.
+
+-   Exploratory Data Analysis (EDA): Conducted to visualize the overall structure of the dataset, examine the distribution of the response variable, and explore correlations among predictor variables.
+
+-   Built an initial regression model and examined both the estimated coefficients and the Variance Inflation Factors (VIFs) to check for multicollinearity.
+
+-   Tested various combinations of predictor variables and refined our models to find the most accurate and reliable one.
+
+-   Using the final model make the prediction of the market value of property "6321 88th street" and compare to the actual value
+
+# **EXPLORATORY DATA ANALYSIS (EDA)**
+
+In this part we will do the initial analysis of our dataset examine its basic structure, visually assess the distribution of the response variable and identify relationships between predictors. This will guide us and help us to better understand our datas.
+
+## **Data structure**
+
+```{r}
+# Load our dataset in R
+dataproperty <- read.csv("https://raw.githubusercontent.com/weglo/Data-Analytics-course/refs/heads/main/Dataset_Property_assesment.csv") 
+colnames(dataproperty) <- c("Market_value_2025", "Total_main_area", "Main_area", "Garage", "Land")
+
+# Structure and summary
+head(dataproperty)
+str(dataproperty)
+colSums(is.na(dataproperty))
+
+```
+
+### **Interpretation**
+
+The dataset contains variables such as Main_area, Garage, Total_main_area, and Land that can influence 2025_Market_Value. No missing values were detected, and the data types are appropriate for analysis.
+
+## **Response value disribution**
+
+lets explore the response variable distribution
+
+```{r}
+# Histogram of market value
+hist(dataproperty$Market_value_2025, 
+     main = "Distribution of Market Value", 
+     xlab = "Market Value", 
+     col = "skyblue", breaks = 20)
+```
+
+### **Interpretation**
+
+The market value distribution shows a **slight right skew**, possibly due to high-value outliers.
+
+## **Correlation between predictor**
+
+```{r}
+# Correlation matrix
+library(tidyverse)
+library(corrplot)
+data <- dataproperty[-1]
+corrplot(cor(data %>% select_if(is.numeric)), method = "circle")
+
+```
+
+```{r}
+# Pairwise scatterplots (optional)
+pairs(~ Market_value_2025 + Total_main_area + Garage + Main_area, data = dataproperty)
+```
+
+### **Interpretation**
+
+The first figure shows the " Correlation matrix" and we can notice the High correlation between **Total Main Area**, **Main Area**, and **Garage**, which could suggest potential multicollinearity.
+
+The pairwise visual analysis confirms a **positive linear relationship** between size-related variables and market value.
+
+# **REGRESSION MODEL AND ANALYSIS**
+
+## **Initial regression model and VIF check**
+
+lets fit a full regression model with all the predictor variables and evaluate multicollinearity
+
+```{r}
+# Fit the initial model
+library(car)
+model_initial <- lm(Market_value_2025 ~ Total_main_area + Main_area + Garage + Land, data = dataproperty)
+summary(model_initial)
+
+# Check Variance Inflation Factors
+vif(model_initial)
+```
+
+the equation for the initial model is :
+
+$$
+y=3465.85 + 121.66X_1 + 14.92X_2 + 73.01X_3 + 13.11X_4
+$$
+
+$B_o = 23210.230$
+
+$B_1 =121.66$
+
+$B_2 =14.92$
+
+$B_3 = 73.01$
+
+$B_4 = 13.11$
+
+## **Outliers, leverages and influences**
+
+In this part we are going to evaluate whether we have properties with unusually high or low predictors values ( Total_main_area, Main_area, Garage, Land ) given the Initial model.
+
+```{r}
+# Load necessary package
+library(car)
+
+# Plot 1: Influence Plot (Outliers + Leverage + Cook's Distance)
+influencePlot(model_initial,
+              id.method = "identify", 
+              main = "Influence Plot",
+              sub = "Circle size ∝ Cook’s Distance")
+```
+
+## **Interpretation**
+
+### **Summary Interpretation**
+
+-   **Total_main_area** is highly significant (**p \< 0.0001**): for every additional 1 sq ft of total main area, the market value increases by **\$122**.
+
+-   **Main_area** is not significant adds little to the model and may overlap with Total_main_area (multicolinearity)
+
+-   **Garage** is significant each additional sq ft of garage adds **\$73** to the market value.
+
+-   **Land** Not quite statistically significant (p ≈ 0.08), but shows that land size may contribute to value **\$13/sq ft.**
+
+-   **Multiple R-squared (**$R^2$): The model explains **79.7% of the variability** in market value. That’s a **very strong fit**.
+
+-   **Adjusted R-squared (0.7687)** is high enough, meaning even with 4 predictors, the model performs well without being overly complex.
+
+-   **F-statistic p-value 1.16e-09:** shows that the model overall is highly statistically significant
+
+#### **VIF (Variance Inflation Factor ) interpretation**
+
+|  |  |  |
+|------------------------|------------------------|------------------------|
+| **Predictor** | **VIF** | **Interpretation** |
+| Total_main_area | 1.98 | No multicollinearity concern |
+| Main_area | 2.58 | Acceptable, but relatively high could be overlapping with Total_main_area |
+| Garage | 1.70 | Low multicollinearity |
+| Land | 2.47 | Acceptable |
+
+### Outliers, leverages and influences interpretation
+
+-   **observation 25** is the most problematic data point; very large negative residual it's far below what the model predicts; medium leverage and large cook's distance, it's pulling the model down
+
+-   **Observation 7** is also a strong outlier with moderate influence.
+
+-   **Observation 20** isn't an outlier but has **very high leverage**, meaning its **predictors are extreme** maybe an unusually large house or land area.
+
+-   **Observation 11** has **high leverage** but doesn't appear to distort the model much (low Cook's Distance)
+
+-   **Observation 6** is a moderate outlier.
+
+## **Conclusion**
+
+All VIFs are under 5 that means **no severe multicollinearity**, but Main_area could be somewhat redundant with Total_main_area.
+
+## **Refine model 1**
+
+For our refined model 1, let's remove the Main_area variable since previously we observed that this variable could be somewhat redundant with Total_main_area also we will remove the observation 25.
+
+```{r}
+  # Fit the model 1
+datarefine <- dataproperty[,-25]
+model1 <- lm(Market_value_2025 ~ Total_main_area + Garage + Land, data = datarefine)
+summary(model1)
+
+# Check Variance Inflation Factors
+vif(model1)
+```
+
+the equation for this model 1 is :
+
+$$
+y=23210.230 + 123.627X_1 + 78.290X_2 + 14.525X_3
+$$
+
+with:
+
+$B_o = 23210.230$
+
+$B_1 =123.627$
+
+$B_2 =78.290$
+
+$B_3 = 14.525$
+
+## **Interpretation**
+
+### **Summary Interpretation**
+
+-   **Total_main_area**: **Highly significant**, for every 1 sq ft increase in total main area, market value increases by **\$123.63**
+
+-   **Garage** is significant, for each additional 1 sq ft of garage increases market value by **\$78.29**
+
+-   **Land** is significant, for each additional 1 sq ft of lands adds **\$14.50** to market value**.**
+
+-   **Multiple R-squared (**$R^2$): the model explains **79.6%** of variation in market value very strong fit.
+
+-   **Adjusted R-squared (0.7751)** adjusts for number of predictors, still strong meaning the model isn't overfitted
+
+-   **F-statistic p-value 1.84e-10** the model is highly significant overall.
+
+All predictors are statistically significant **(p \< 0.05),** meaning they meaningfully contribute to predicting market value**.**
+
+#### **VIF (Variance Inflation Factor ) interpretation**
+
+|                 |      |                       |
+|-----------------|------|-----------------------|
+| Predictor       | VIF  | Interpretation        |
+| Total_main_area | 1.92 | low multicollinearity |
+| Garage          | 1.47 | low multicollinearity |
+| Land            | 1.91 | low multicollinearity |
+
+## **Conclusion**
+
+All predictors are statistically significant **(p \< 0.05),** meaning they meaningfully contribute to predicting market value and also All VIFs \< 2 that means **no multicollinearity concerns** the predictors are **independently contributing**.
+
+Model 1 is a the **strong, clean, and well-behaved model**:
+
+-   All predictors (Total_main_area, Garage, Land) are statistically significant.
+
+-   Model explains **79.6%** of the variability in home values which is excellent.
+
+<!-- -->
+
+-   Residual error is reasonable (\~\$33k), given the scale of the housing market.
+
+-   No multicollinearity, meaning our variables are not redundant.
+
+# **PREDICTION AND ASSESSMENT**
+
+We will now use the **model 1 (** $y=23210.230 + 123.627X_1 + 78.290X_2 + 14.525X_3$ ) and the 95% prediction interval to predict the 2025 market value of 6321 88th Street, based on its property characteristics ( "Total_main_area", "Garage", "Land")
+
+```{r}
+# Create new data frame for prediction
+home_6321 <- data.frame(
+  Total_main_area = 2773,
+  Garage = 592,
+  Land = 7546
+  )
+
+# Make prediction with prediction interval
+predict(model1, newdata = home_6321, interval = "prediction", level = 0.95)
+```
+
+## **Interpretation**
+
+-   The predicted market value for the home at 6321 88th street is **\$521981.7**
+
+-   The 95% prediction interval ranges from **\$452551.3 to** **\$591412.1**
+
+-   The actual value of **\$538409** is **within** the prediction interval but near the upper bound
+
+# **FINAL CONCLUSION**
+
+The predicted market value for **6321 88th Street** based on a carefully refined regression model is slightly lower than the actual assessed value of **\$538409.** However, since the actual value falls within the model’s **95% prediction interval**, the actaul assessment is **statistically reasonable.** It is **not significantly overvalued**, but it is **priced at the higher end** of what the model would expect for its characteristics.
