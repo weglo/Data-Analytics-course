@@ -1,0 +1,366 @@
+---
+title: " PROJECT 3: ANALYSIS OF BAR EXAM PASSAGE "
+author: "Loic Wega, Aboubacar Cissokho"
+date: Last compiled on `r format(Sys.time(), '%B %d, %Y')` at `r format(Sys.time(),'%l:%M %p - %Z')`
+output:
+  html_document: 
+    toc: true
+    number_sections: true
+    toc_float: true
+  pdf_document: 
+    toc: true
+    number_sections: true
+  word_document:
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message = FALSE)
+```
+
+# **INTRODUCTION**
+
+As data analysts for a major university, we have been tasked by the Dean of the school to provide them with data driven insights into factors which influence a student’s passing the Uniform Bar Exam (UBE). Our study was limited to performing regression analysis in order to predict the bar exam passage based on the provided variables. Whether the significant variables that our model will unveil is actionable or not by the law school will be left to the discretion of the Dean of school and their leadership team. The following dataset available in csv format has been provided to us using the following link: <https://raw.githubusercontent.com/tmatis12/datafiles/refs/heads/main/Updated_Bar_Data_For_Review_Final.csv>
+
+A pull of historical data from the link above unveiled a total of 476 observations contained in 26 variables, including the response variable of Passfail, which denotes whether the student passed the exam. This represents datasets taken from 2021 to 2024. Below is the list of the variables summarized and defined:
+
+1\. LSAT: Score on the LSAT entrance examination
+
+2\. UGPA: Undergraduate
+
+GPA 3. Class: Year student entered law school
+
+4\. CivPro, LP1, LP2: Scores in 1L core courses
+
+5\. OneCum, FGPA: Cumulative GPA at end of 1L year and 3L year, respectively
+
+6\. Accom: Received accommodations from Student Disability Services (Yes/No)
+
+7\. Probation: Ever placed on academic probation (Yes/No)
+
+8\. LegalAnalysis, AdvLegalPerf, AdvLegalAnalysis: Enrollment in various elective courses (Yes/No)
+
+9\. BarPrep: Type of bar preparation course taken
+
+10\. PctBarPrepComplete: Percent of bar prep course completed
+
+11\. NumPrepWorkshops: Number of bar prep workshops attended
+
+12\. StudentSuccessInitiative: Participation in academic support program (Yes/No)
+
+13\. BarPrepMentor: Whether student had a mentor for bar prep (Yes/No) 14. MPRE, MPT, MEE, MBE: Component scores of the bar exam
+
+15\. UBE: Composite Uniform Bar Exam score
+
+16\. Pass: Final outcome – Did the student pass the bar exam? (Yes/No)
+
+We did not use all the variables above to build our model. We left out variables in our analysis, such as Age for example, that we practically deemed irrelevant in passing the bar exam. The following section on assumptions explain the logic of our variables selection.
+
+# Assumptions on the variables retained for the initial model build:
+
+Assumptions: According to the National Conference of Bar Examiners (<https://www.ncbex.org/exams/ube>), the Uniform Bar Exam (UBE) includes the Multistate Essay Examination (MEE), the Multistate Bar Examination (MBE), the Multistate Professional Responsibility Exam (MPRE) and two of Multistate Performance Test (MPT). Hence, passing or failing the exam depends on passing all these tests. Every year, the cutoff score changes. Therefore, we have decided to regress the predictor variables on the Passfail response instead of UBE:
+
+• Passfail will be our response variable and treated as a categorical variable with two outcomes: Yes or No. Therefore our model will assume a Bernoulli distribution, which is a particular case of the binomial distribution.
+
+• Civpro, LP1 and LP2 are foundational courses in the law program and one can logically assume that students who perform well in these classes will be well prepared for the Uniform Bar Exam. We have treated these as ordinal variables.
+
+• We think that making accommodation for students with disabilities will help this segment of the student population prepare well for the exam. Issues related to moving around, hearing, typing, or any other physical abilities related to learning hinder students from properly studying. So in our project we are interested in knowing whether accommodations have been made for the physically impaired students. It’s a Yes or No answer, therefore treated as a categorical variable.\
+• A student having been placed on probation is definitely an indication of learning issues whatever the causes are. Therefore we have included these in our initial set of potential predictor variables
+
+• Another set of courses, LegalAnalysis, AdvLegalPerf, AdvLegalAnalysis, similar to the Civpro, LP1 and LP2 in how they can impact the outcome of the Bar Exam have also been considered. Although these are elective courses, they are of legal relevance. In our project, we want to know whether students have taken these yes or no. Therefore we have treated this set as a categorical variable
+
+• We also have assumed that BarPrepCompany which indicates the type of Bar Preparation completed, can be an interesting factor to study, therefore we have included it in our initial set as a factor variable
+
+• PctBarPrepComplete can also positively influence the success rates for bar exams since it indicates the percentage of bar preparatory courses completed. The number of bar preparatory workshops attended, represented by the variable PrepWorkshops\`, is also available and is similar to the PctBarPrepComplete variable. One describes preparatory courses and the other preparatory workshops. To avoid potential correlation between two predictor variables, we decided to select the prime one.
+
+• Participation in an academic support program, as a categorical variable, has also been assumed in our initial set as potentially relevant. So we have included it as a categorial variable
+
+• Last but not necessarily least at this stage of our analysis, is the variable BarPrepMentor indicating whether the student has used a mentor or not in preparing for the exam. We assumed this to be relevant and therefore have included it in our intial model as a categorical value.
+
+# **DATA PREPARATION PROCESS**
+
+## **Dowload and create new dataset**
+
+```{r}
+
+library(tidyr)
+library(dplyr) 
+library(stringr)
+library(ggplot2)
+library(ggpubr)
+
+#dowload the dataset from github
+df<-read.csv("https://raw.githubusercontent.com/tmatis12/datafiles/refs/heads/main/Updated_Bar_Data_For_Review_Final.csv")
+
+#define new dataset by removing (MPRE, MPT< MEE< Writtenscalescore, MBE, UBE )
+new_df <- data.frame(df$PassFail, df$Age, df$LSAT, df$UGPA, df$CivPro, df$LPI, df$LPII, df$GPA_1L,
+                 df$GPA_Final, df$FinalRankPercentile, df$Accommodations, df$Probation,
+                 df$LegalAnalysis_TexasPractice, df$AdvLegalPerfSkills, df$AdvLegalAnalysis, df$BarPrepCompany,
+                 df$BarPrepCompletion, df$X.LawSchoolBarPrepWorkshops, df$StudentSuccessInitiative,
+                 df$BarPrepMentor) 
+```
+
+## **Data cleaning**
+
+```{r}
+#cleaning dataset operation 
+
+clear_df <- na.omit(new_df)  #clean missing value in the dataset 
+colSums(is.na(clear_df)) # Check for missing values
+
+clear_df <- na.omit(clear_df) #clean missing value in the dataset 
+
+# Remove 'df.' prefix from all column names
+names(clear_df) <- str_remove(names(clear_df), "^df.")
+
+```
+
+## **Data transformation**
+
+```{r}
+#Transform our variables types 
+
+clear_df$PassFail <- as.factor(clear_df$PassFail)
+clear_df$CivPro <- factor(clear_df$CivPro, levels =c("A","B+","B", "C+",
+                                                           "c","D+","D", "F"), ordered = TRUE)
+clear_df$LPI <- factor(clear_df$LPI, levels =c("A","B+","B", "C+",
+                                                           "c","D+","D", "F"), ordered = TRUE)
+clear_df$LPII <- factor(clear_df$LPII, levels =c("A","B+","B", "C+",
+                                                     "c","D+","D", "F"), ordered = TRUE)
+clear_df$Accommodations <- as.factor(clear_df$Accommodations)
+clear_df$Probation <- factor(clear_df$Probation, levels = c("Y","N"))
+clear_df$LegalAnalysis_TexasPractice <- as.factor(clear_df$LegalAnalysis_TexasPractice)
+clear_df$AdvLegalPerfSkills <- as.factor(clear_df$AdvLegalPerfSkills)
+clear_df$AdvLegalAnalysis <- as.factor(clear_df$AdvLegalAnalysis)
+clear_df$BarPrepCompany <- as.factor(clear_df$BarPrepCompany)
+clear_df$StudentSuccessInitiative <- as.factor(clear_df$StudentSuccessInitiative)
+clear_df$BarPrepMentor <- as.factor(clear_df$BarPrepMentor)
+
+```
+
+```{r}
+#Take a look of our dataset
+summary(clear_df)
+```
+
+# **EXPLORATORY DATA ANALYSIS**
+
+## **Response variable analysis**
+
+Before modeling, we first examine the distribution of our target variable, **`PassFail`**, which indicates whether students passed (P) or failed (F) the bar exam.
+
+### **Bar passage rate**
+
+```{r}
+#calculate the passage rate 
+pass_rate <- clear_df %>% 
+  count(PassFail) %>% 
+  mutate(percentage = n / sum(n) * 100)
+pass_rate
+```
+
+#### **Interpretation**
+
+Looking at this result F (Fail) represents 51 students (11.4%), while P (Pass) includes 398 students (88.6%), showing a strong majority of bar exam passers in the datasetalize distribution
+
+### **Visualize distribution**
+
+```{r}
+#plot PassFail rate 
+ggplot(clear_df, aes(x = PassFail, fill = PassFail)) +
+  geom_bar() +
+  labs(title = "Bar Passage Outcomes", x = "Outcome", y = "Count")
+```
+
+#### **Interpretation**
+
+88.6% of students (397 individuals) successfully passed the bar exam, this exceptionally high pass rate suggests either: An academically strong cohort of students or an effective law school curriculum and bar preparation program. Fail Rate: Only 11.4% of students (51 individuals) failed the bar exam, while relatively small, this group represents a significant opportunity for intervention.
+
+## **Continuous predictor analysis**
+
+Let;s look at trends in academic performance.
+
+### **Plot key continuous predictors**
+
+```{r}
+# Plot key continuous predictors
+p1 <- ggplot(clear_df, aes(x = PassFail, y = LSAT, fill = factor(PassFail))) +
+  geom_boxplot() +
+  labs(title = "LSAT Scores by Bar Outcome")
+p2 <- ggplot(clear_df, aes(x = PassFail, y = GPA_Final, fill = factor(PassFail))) +
+  geom_boxplot() +
+  labs(title = "Final GPA by Bar Outcome")
+
+ggarrange(p1, p2, ncol = 2)
+```
+
+### **Interpretation**
+
+Passing students tend to have higher LSAT scores and final GPAs.
+
+In the plot on the left Median LSAT for Passers ("P"): Likely around 155-157 for successful law students Median LSAT for Failers ("F"): Likely 3-5 points lower (150-153) This plot on the left indicate that LSAT scores give us to understand that LSAT scores are a moderate predictor of bar success. The 5-point median gap between Pass and Fail boxplot shows that LSAT correlates with bar passage but isn’t deterministic .
+
+In the plot on the right Median GPA for Passers ("P"): Likely 3.3–3.5 (strong performance), Median GPA for Failers ("F"): Likely 0.3–0.5 points lower. Failers may include extreme low-GPA students , while passers rarely dip below 3.0. We can observe that GPA is a stronger predictor than LSAT. A 3.0+ GPA appears critical for success. while it looks give GPA and LSAT give a little explanation about the passers or failers, those two alone don’t fully explain outcomes, other factors may intervent.
+
+## **Categorical Predictor Analysis**
+
+### **Plot key categorical predictors**
+
+```{r}
+p3 <- ggplot(clear_df, aes(x = Probation, fill = factor(PassFail))) +
+  geom_bar(position = "fill") +
+  labs(title = "Bar Passage by Probation Status")
+
+p4 <- ggplot(clear_df, aes(x = BarPrepMentor, fill = factor(PassFail))) +
+  geom_bar(position = "fill") +
+  labs(title = "Bar Passage by Mentor Status")
+
+ggarrange(p3, p4, ncol = 2)
+```
+
+### **Interpretation**
+
+Students on probation typically have GPAs below 2.0–2.5, indicating persistent struggles with legal coursework. (probation = failure of academic integration)
+
+Mentors who recently passed the bar offer credible, relatable advice (e.g., how to approach exam questions), and can teach candidate to identify early signs of struggle. (mentorship = belonging and guidance)
+
+# **MODEL BUILDING**
+
+## **Full model**
+
+To identify key predictors of bar exam success, we begin by fitting a **full logistic regression model** using all available variables. This initial model serves as a baseline for evaluating predictor significance and guiding subsequent refinement through stepwise selection.
+
+```{r}
+# Fit full logistic regression model
+# Convert PassFail to binary (1 for Pass, 0 for Fail)
+clear_df$PassFail <- as.numeric(clear_df$PassFail == "P") # Convert PassFail to binary (1 for Pass, 0 for Fail)
+model_data <- na.omit(clear_df)
+full_model <- glm(PassFail ~ ., 
+                  family = binomial(link = "logit"), 
+                  data = model_data)
+
+# Model summary
+summary(full_model)
+```
+
+### **Interpretation**
+
+Running the full model it's appear that his isn't significant. All p-values all \$\\approx\$ 1.000, Residual deviance near 0 (2.6310e-08) with AIC = 222 (too low for a meaningful model).
+
+## **Evaluation of models using Stepwise selection based on AIC**
+
+To identify the most impactful predictors while maintaining model parsimony, we perform **stepwise AIC-based selection** on the full model.
+
+```{r}
+library(MASS) # Load necessary library
+# Perform stepwise selection 
+
+step_results <- stepAIC(full_model, direction = "both", trace = FALSE, steps=9)
+
+# Extract the top 19 models
+top_3_models <- head(step_results$anova, 9)
+
+top_3_models
+```
+
+### **Conclusion**
+
+Started with 19 predictors and systematically removed 11 variables that contributed least to model fit AIC decreased from 222 to 82, indicating significantly better model quality. Variable 'Age' appears least important since it has been remove the last. Some academic metrics like CiVPro, FinalRankPercentile were remove earlier on the stepwise process likely because of their insignificant impact on the response small deviance score ( 2.26e-07 and 6.53e-09).
+
+The final select Model is PassFail regress on LSAT + UGPA + LPI + LPII + GPA_1L + GPA_Final + Probation + LegalAnalysis_TexasPractice + BarPrepCompany + BarPrepCompletion + StudentSuccessInitiative
+
+For this final model the Residual Deviance: Reduced from 2.63e-08 to 3.84e-04, AIC is 82 (lower is better) and we have 11 variables instead of 19 for original model that means The model achieves good fit with just 11 key predictors instead of the original 19.
+
+## **Final Model Analysis**
+
+To be able to analyse our model we have to convert LPI, LPII and StudentSuccessInitiative to numerical variable
+
+```{r}
+#let's create a new dataset 
+analysis_df <- clear_df
+```
+
+```{r}
+# Convert polynomials to numeric
+## Create grade-to-numeric mapping for converting ordinal variable to numerical
+grade_map <- c("A" = 4, "A-" = 3.7, "B+" = 3.3, "B" = 3.0, "B-" = 2.7, 
+               "C+" = 2.3, "C" = 2.0, "D" = 1.0, "F" = 0)
+
+analysis_df$LPI <- grade_map[as.character(analysis_df$LPI)]
+analysis_df$LPII <- grade_map[as.character(analysis_df$LPII)]
+
+Initiative_group <- names(sort(table(analysis_df$StudentSuccessInitiative), decreasing = TRUE)[1:3])
+analysis_df$StudentSuccessInitiative <- ifelse(
+  analysis_df$StudentSuccessInitiative %in% Initiative_group,
+  as.character(analysis_df$StudentSuccessInitiative),
+  "Other_Programs"
+) %>% factor()
+```
+
+### **Analysis**
+
+Having refined our predictors through stepwise selection, we now analyze the **final logistic regression model** to identify which factors significantly impact bar exam success. This model balances complexity and predictive power by retaining only the most influential variables.
+
+```{r}
+final_model <- glm(PassFail ~ LSAT + UGPA + LPI + LPII + GPA_1L + GPA_Final + Probation + 
+  LegalAnalysis_TexasPractice + BarPrepCompany + BarPrepCompletion + 
+  StudentSuccessInitiative, 
+  family = binomial(link = "logit"),
+  data = analysis_df)
+
+summary(final_model)
+```
+
+#### Interpration
+
+Significants variables:
+
+-   LSAT: pvalue=0.0002; a 1 point increase in LSAT score increase the odds of passing the bar by approximatelt 44% (exp(0.3619)
+
+-   GPA_1L: p-value = 0.0017; a one unit increase in first year GPA increase the odds of passing the bar by 379% (exp(5.938)
+
+-   LPII: p-value = 0.0006; each one unit increase in LPII (converted from grade) decreasses the odds of passing the bar by 91% (exp(-2.407)
+
+-   BarPrepCompletion: p-value = 0.00005; completing the bar prep program increased the odds of passing by 2.038% (exp(7.623))
+
+**Key Model Metrics**
+
+-AIC 142.38 lower than null model, good model fit
+
+-Null Deviance 236.67 Baseline error (higher = worse fit)
+
+-Residual Deviance 110, 53% lower than the null deviance value this indicate a Good fit
+
+-The difference between Null Deviance and Residual Deviance is greater than (qchisq(.95,1)), we a model which is statistical significant.
+
+```{r}
+library(car)
+vif(final_model)
+```
+
+#### **Vif conclusion**
+
+**GPA_1L**: GVIF = **4.94**. *Moderate concern*. This variable may be moderately correlated with **GPA_Final**, as both measure academic performance over time. All other variables are non concerning collinearity because of their GVIF (\<5)
+
+## **Refine model**
+
+For the refine model we drop UGPA, LPI, GPA_Final, Probation, LegalAnalysis_TexasPractice, StudentSuccessInitiative and LPII.
+
+```{r}
+refine_model <- glm(
+  PassFail ~ LSAT + GPA_1L + BarPrepCompletion + BarPrepCompany,
+  family = binomial,
+  data = analysis_df)
+
+summary(refine_model)
+vif(refine_model)
+```
+
+### **Interpretation**
+
+we know have a model with of significant value and no collinearity between predictors. although we have a higher AIc 125.13 than in final_model, the difference between the null deviance and the residual deviance (187.58 - 111.13) is \> than the critical delta \# (qchisq(.95,1)) that means our model is significant.
+
+# **Conclusion**
+
+**AIC = 234.38**, Higher than the final model's AIC (142.38), but acceptable given model simplicity. **Null Deviance = 317.84**, **Residual Deviance = 220.38.** This refined model simplifies the analysis using **just four predictors** while retaining **h**igh explanatory power and statistical significance. It supports the conclusion that early academic strength, LSAT, and completing bar prep are key predictors of bar exam success. Despite a higher AIC than the full model, this model provides clarity, interpretability, and robust predictive insigh**t** without collinearity concerns.
